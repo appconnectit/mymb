@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "274694602056",
+    "project_id": "mymbreact-35996443-40f08",
+    "storage_bucket": "mymbreact-35996443-40f08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274694602056:android:361da48bbf74116cbe077d",
+        "android_client_info": {
+          "package_name": "com.appconnectit.mymb"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "274694602056-2pl9nnbhtaf60s9269545nc6n07tm8vj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsNs7oB8MscuzMQl2bWiudTBA-a50QZhk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "274694602056-2pl9nnbhtaf60s9269545nc6n07tm8vj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
