@@ -5,11 +5,14 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +36,8 @@ import com.appconnectit.mymb.auth.LoginScreen
 import com.appconnectit.mymb.auth.SignUpScreen
 import com.appconnectit.mymb.policies.PrivacyPolicyScreen
 import com.appconnectit.mymb.policies.TermsAndConditionsScreen
+import com.appconnectit.mymb.profile.EditProfileScreen
+import com.appconnectit.mymb.profile.SettingsScreen
 import com.appconnectit.mymb.ui.theme.MyMBTheme
 import com.google.firebase.auth.FirebaseAuth
 
@@ -70,28 +75,56 @@ fun MyMBApp() {
     }
 
     if (isAuthenticated) {
+        var showMenu by remember { mutableStateOf(false) }
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 TopAppBar(
                     title = { Text(text = "Home") },
                     actions = {
-                        IconButton(onClick = { /* Already on Home, so do nothing */ }) {
+                        IconButton(onClick = { navController.navigate("home") }) {
                             Icon(imageVector = Icons.Default.Home, contentDescription = "Home")
                         }
-                        IconButton(onClick = {
-                            auth.signOut()
-                        }) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp , contentDescription = "Sign Out")
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More")
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit Profile") },
+                                    onClick = { 
+                                        navController.navigate("edit_profile")
+                                        showMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Settings") },
+                                    onClick = { 
+                                        navController.navigate("settings")
+                                        showMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Sign Out") },
+                                    onClick = { 
+                                        auth.signOut()
+                                        showMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                 )
             }
         ) { innerPadding ->
-            Greeting(
-                name = "Android",
-                modifier = Modifier.padding(innerPadding)
-            )
+            NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(innerPadding)) {
+                composable("home") { Greeting(name = "Android") }
+                composable("edit_profile") { EditProfileScreen(onCancel = { navController.navigate("home") }) }
+                composable("settings") { SettingsScreen() }
+            }
         }
     } else {
         NavHost(navController = navController, startDestination = "login") {

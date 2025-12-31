@@ -1,4 +1,4 @@
-package com.appconnectit.mymb.auth
+package com.appconnectit.mymb.profile
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -23,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,7 +33,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -45,71 +44,43 @@ import java.util.Calendar
 import java.util.Locale
 
 @Composable
-fun SignUpScreen(
-    onSignUpSuccess: (String) -> Unit,
-    onGoToTerms: () -> Unit,
-    onGoToPrivacy: () -> Unit
-) {
+fun EditProfileScreen(onCancel: () -> Unit) {
+    val auth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
+    val user = auth.currentUser
+    val context = LocalContext.current
+
     var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var dob by remember { mutableStateOf("") }
     var tob by remember { mutableStateOf("") }
     var cob by remember { mutableStateOf("") }
     var therapistEmail by remember { mutableStateOf("") }
-    var agreedToTerms by remember { mutableStateOf(false) }
 
-    var emailDirty by remember { mutableStateOf(false) }
-    var passwordDirty by remember { mutableStateOf(false) }
-    var confirmPasswordDirty by remember { mutableStateOf(false) }
+    var nameDirty by remember { mutableStateOf(false) }
+    var genderDirty by remember { mutableStateOf(false) }
     var dobDirty by remember { mutableStateOf(false) }
     var tobDirty by remember { mutableStateOf(false) }
+    var cobDirty by remember { mutableStateOf(false) }
     var therapistEmailDirty by remember { mutableStateOf(false) }
 
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
-    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var genderError by remember { mutableStateOf<String?>(null) }
     var dobError by remember { mutableStateOf<String?>(null) }
     var tobError by remember { mutableStateOf<String?>(null) }
+    var cobError by remember { mutableStateOf<String?>(null) }
     var therapistEmailError by remember { mutableStateOf<String?>(null) }
 
-    val context = LocalContext.current
-    val auth = FirebaseAuth.getInstance()
-    val db = FirebaseFirestore.getInstance()
     val minDobCalendar = Calendar.getInstance().apply {
         set(1900, 0, 1)
     }
 
-    fun validateEmail() {
-        emailError = if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            "Invalid email address"
-        } else {
-            null
-        }
+    fun validateName() {
+        nameError = if (name.isBlank()) "Name cannot be empty" else null
     }
 
-    fun validatePassword() {
-        val errors = mutableListOf<String>()
-        if (password.length < 8) errors.add("at least 8 characters")
-        if (!password.any { it.isLowerCase() }) errors.add("a lowercase character")
-        if (!password.any { it.isUpperCase() }) errors.add("an uppercase character")
-        if (!password.any { !it.isLetterOrDigit() }) errors.add("a non-alphanumeric character")
-
-        passwordError = if (errors.isNotEmpty()) {
-            "Password must contain " + errors.joinToString(", ")
-        } else {
-            null
-        }
-    }
-
-    fun validateConfirmPassword() {
-        confirmPasswordError = if (password != confirmPassword) {
-            "Passwords do not match"
-        } else {
-            null
-        }
+    fun validateGender() {
+        genderError = if (gender.isBlank()) "Please select a gender" else null
     }
 
     fun validateDob() {
@@ -134,11 +105,31 @@ fun SignUpScreen(
         tobError = if (tob.isBlank()) "Please enter your time of birth" else null
     }
 
+    fun validateCob() {
+        cobError = if (cob.isBlank()) "City of birth cannot be empty" else null
+    }
+
     fun validateTherapistEmail() {
         therapistEmailError = if (therapistEmail.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(therapistEmail).matches()) {
             "Invalid email address"
         } else {
             null
+        }
+    }
+
+    LaunchedEffect(user) {
+        if (user != null) {
+            db.collection("users").document(user.uid).get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        name = document.getString("name") ?: ""
+                        gender = document.getString("gender") ?: ""
+                        dob = document.getString("dob") ?: ""
+                        tob = document.getString("tob") ?: ""
+                        cob = document.getString("cob") ?: ""
+                        therapistEmail = document.getString("therapistEmail") ?: ""
+                    }
+                }
         }
     }
 
@@ -179,45 +170,15 @@ fun SignUpScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
-
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it; emailDirty = true; validateEmail() },
-            label = { Text("Email") },
-            isError = emailError != null,
-            supportingText = { emailError?.let { Text(it, color = Color.Red) } },
+            value = name,
+            onValueChange = { name = it; nameDirty = true; validateName() },
+            label = { Text("Name") },
+            isError = nameError != null,
+            supportingText = { nameError?.let { Text(it, color = Color.Red) } },
             modifier = Modifier.onFocusChanged {
-                if (!it.isFocused && emailDirty) {
-                    validateEmail()
-                }
-            }
-        )
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it; passwordDirty = true; validatePassword() },
-            label = { Text("Password") },
-            isError = passwordError != null,
-            supportingText = { passwordError?.let { Text(it, color = Color.Red) } },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.onFocusChanged {
-                if (!it.isFocused && passwordDirty) {
-                    validatePassword()
-                }
-            }
-        )
-
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it; confirmPasswordDirty = true; validateConfirmPassword() },
-            label = { Text("Confirm Password") },
-            isError = confirmPasswordError != null,
-            supportingText = { confirmPasswordError?.let { Text(it, color = Color.Red) } },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.onFocusChanged {
-                if (!it.isFocused && confirmPasswordDirty) {
-                    validateConfirmPassword()
+                if (!it.isFocused && nameDirty) {
+                    validateName()
                 }
             }
         )
@@ -232,6 +193,8 @@ fun SignUpScreen(
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Gender") },
+                isError = genderError != null,
+                supportingText = { genderError?.let { Text(it, color = Color.Red) } },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isGenderExpanded) },
                 modifier = Modifier.menuAnchor()
             )
@@ -240,6 +203,8 @@ fun SignUpScreen(
                     DropdownMenuItem(text = { Text(option) }, onClick = {
                         gender = option
                         isGenderExpanded = false
+                        genderDirty = true
+                        validateGender()
                     })
                 }
             }
@@ -279,7 +244,19 @@ fun SignUpScreen(
                 .clickable { timePickerDialog.show() }
         )
 
-        OutlinedTextField(value = cob, onValueChange = { cob = it }, label = { Text("City of Birth") })
+        OutlinedTextField(
+            value = cob,
+            onValueChange = { cob = it; cobDirty = true; validateCob() },
+            label = { Text("City of Birth") },
+            isError = cobError != null,
+            supportingText = { cobError?.let { Text(it, color = Color.Red) } },
+            modifier = Modifier.onFocusChanged {
+                if (!it.isFocused && cobDirty) {
+                    validateCob()
+                }
+            }
+        )
+
         OutlinedTextField(
             value = therapistEmail,
             onValueChange = { therapistEmail = it; therapistEmailDirty = true; validateTherapistEmail() },
@@ -293,66 +270,48 @@ fun SignUpScreen(
             }
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = agreedToTerms, onCheckedChange = { agreedToTerms = it })
-            Text("I agree to the ")
-            TextButton(onClick = onGoToTerms) {
-                Text("Terms and Conditions")
+        Row {
+            Button(
+                onClick = onCancel,
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                Text("Cancel")
             }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("and the ")
-            TextButton(onClick = onGoToPrivacy) {
-                Text("Privacy Policy")
-            }
-        }
+            Button(
+                onClick = {
+                    validateName()
+                    validateGender()
+                    validateDob()
+                    validateTob()
+                    validateCob()
+                    validateTherapistEmail()
 
-        Button(
-            onClick = {
-                validateEmail()
-                validatePassword()
-                validateConfirmPassword()
-                validateDob()
-                validateTob()
-                validateTherapistEmail()
-
-                if (emailError == null && passwordError == null && confirmPasswordError == null && dobError == null && tobError == null && therapistEmailError == null && agreedToTerms) {
-                    auth.createUserWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val user = auth.currentUser
-                                user?.sendEmailVerification()?.addOnCompleteListener { verificationTask ->
-                                    if (verificationTask.isSuccessful) {
-                                        val userData = hashMapOf(
-                                            "name" to name,
-                                            "email" to email,
-                                            "gender" to gender,
-                                            "dob" to dob,
-                                            "tob" to tob,
-                                            "cob" to cob,
-                                            "therapistEmail" to therapistEmail
-                                        )
-                                        db.collection("users").document(user.uid)
-                                            .set(userData)
-                                            .addOnSuccessListener { onSignUpSuccess(email) }
-                                            .addOnFailureListener { e ->
-                                                Toast.makeText(context, "Failed to save user data: ${e.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                    } else {
-                                        Toast.makeText(context, "Failed to send verification email: ${verificationTask.exception?.message}", Toast.LENGTH_SHORT).show()
-                                    }
+                    if (nameError == null && genderError == null && dobError == null && tobError == null && cobError == null && therapistEmailError == null) {
+                        if (user != null) {
+                            val updatedUserData = hashMapOf(
+                                "name" to name,
+                                "gender" to gender,
+                                "dob" to dob,
+                                "tob" to tob,
+                                "cob" to cob,
+                                "therapistEmail" to therapistEmail
+                            )
+                            db.collection("users").document(user.uid)
+                                .set(updatedUserData)
+                                .addOnSuccessListener {
+                                    Toast.makeText(context, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+                                    onCancel()
                                 }
-                            } else {
-                                Toast.makeText(context, "Sign up failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                            }
+                                .addOnFailureListener { e ->
+                                    Toast.makeText(context, "Failed to update profile: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
                         }
-                } else if (!agreedToTerms) {
-                    Toast.makeText(context, "You must agree to the terms and conditions", Toast.LENGTH_SHORT).show()
-                }
-            },
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text("Sign Up")
+                    }
+                },
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text("Save")
+            }
         }
     }
 }
@@ -412,12 +371,8 @@ class TimeVisualTransformation : VisualTransformation {
 
 @Preview(showBackground = true)
 @Composable
-fun SignUpScreenPreview() {
+fun EditProfileScreenPreview() {
     MyMBTheme {
-        SignUpScreen(
-            onSignUpSuccess = {},
-            onGoToTerms = {},
-            onGoToPrivacy = {}
-        )
+        EditProfileScreen(onCancel = {})
     }
 }
