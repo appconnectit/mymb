@@ -27,13 +27,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.appconnectit.mymb.auth.ConfirmationScreen
 import com.appconnectit.mymb.auth.LoginScreen
 import com.appconnectit.mymb.auth.SignUpScreen
+import com.appconnectit.mymb.mood.MoodEntryScreen
 import com.appconnectit.mymb.policies.PrivacyPolicyScreen
 import com.appconnectit.mymb.policies.TermsAndConditionsScreen
 import com.appconnectit.mymb.profile.EditProfileScreen
@@ -82,7 +82,7 @@ fun MyMBApp() {
                 TopAppBar(
                     title = { Text(text = "Home") },
                     actions = {
-                        IconButton(onClick = { navController.navigate("home") }) {
+                        IconButton(onClick = { navController.navigate("mood_entry") }) {
                             Icon(imageVector = Icons.Default.Home, contentDescription = "Home")
                         }
                         Box {
@@ -120,9 +120,9 @@ fun MyMBApp() {
                 )
             }
         ) { innerPadding ->
-            NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(innerPadding)) {
-                composable("home") { Greeting(name = "Android") }
-                composable("edit_profile") { EditProfileScreen(onCancel = { navController.navigate("home") }) }
+            NavHost(navController = navController, startDestination = "mood_entry", modifier = Modifier.padding(innerPadding)) {
+                composable("mood_entry") { MoodEntryScreen() }
+                composable("edit_profile") { EditProfileScreen(onCancel = { navController.navigate("mood_entry") }) }
                 composable("settings") { SettingsScreen() }
             }
         }
@@ -164,21 +164,5 @@ fun MyMBApp() {
                 PrivacyPolicyScreen()
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MyMBTheme {
-        Greeting("Android")
     }
 }
