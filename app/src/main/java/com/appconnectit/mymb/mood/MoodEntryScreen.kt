@@ -41,7 +41,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @Composable
-fun MoodEntryScreen() {
+fun MoodEntryScreen(onNext: (Float) -> Unit) {
     val ripples = remember { List(7) { Animatable(0f) } }
     var sliderPosition by remember { mutableStateOf(3f) }
 
@@ -219,7 +219,7 @@ fun MoodEntryScreen() {
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = { /* TODO: Handle next button click */ }) {
+            Button(onClick = { onNext(sliderPosition) }) {
                 Text("Next")
             }
         }

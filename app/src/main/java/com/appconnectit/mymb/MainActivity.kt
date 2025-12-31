@@ -33,12 +33,14 @@ import androidx.navigation.compose.rememberNavController
 import com.appconnectit.mymb.auth.ConfirmationScreen
 import com.appconnectit.mymb.auth.LoginScreen
 import com.appconnectit.mymb.auth.SignUpScreen
+import com.appconnectit.mymb.mood.FeelingsEntryScreen
 import com.appconnectit.mymb.mood.MoodEntryScreen
 import com.appconnectit.mymb.policies.PrivacyPolicyScreen
 import com.appconnectit.mymb.policies.TermsAndConditionsScreen
 import com.appconnectit.mymb.profile.EditProfileScreen
 import com.appconnectit.mymb.profile.SettingsScreen
 import com.appconnectit.mymb.ui.theme.MyMBTheme
+import com.appconnectit.mymb.visualization.MoodVisualizationScreen
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
@@ -108,6 +110,13 @@ fun MyMBApp() {
                                     }
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("Visualization") },
+                                    onClick = { 
+                                        navController.navigate("mood_visualization")
+                                        showMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Sign Out") },
                                     onClick = { 
                                         auth.signOut()
@@ -121,9 +130,18 @@ fun MyMBApp() {
             }
         ) { innerPadding ->
             NavHost(navController = navController, startDestination = "mood_entry", modifier = Modifier.padding(innerPadding)) {
-                composable("mood_entry") { MoodEntryScreen() }
+                composable("mood_entry") { MoodEntryScreen(onNext = { mood -> navController.navigate("feelings_entry/$mood") }) }
+                composable("feelings_entry/{mood}") { backStackEntry ->
+                    val mood = backStackEntry.arguments?.getString("mood")?.toFloat() ?: 3f
+                    FeelingsEntryScreen(
+                        mood = mood,
+                        onCancel = { navController.popBackStack() },
+                        onSubmit = { navController.navigate("mood_visualization") { popUpTo("mood_entry") { inclusive = true } } }
+                    )
+                }
                 composable("edit_profile") { EditProfileScreen(onCancel = { navController.navigate("mood_entry") }) }
                 composable("settings") { SettingsScreen() }
+                composable("mood_visualization") { MoodVisualizationScreen() }
             }
         }
     } else {
