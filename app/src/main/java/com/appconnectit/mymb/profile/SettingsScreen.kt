@@ -53,6 +53,7 @@ fun SettingsScreen() {
     val user = auth.currentUser
     val context = LocalContext.current
     var reminders by remember { mutableStateOf(listOf<Reminder>()) }
+    var pendingReminderTime by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     fun fetchReminders() {
         if (user != null) {
@@ -69,16 +70,6 @@ fun SettingsScreen() {
 
     LaunchedEffect(user) {
         fetchReminders()
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            // Permission Accepted
-        } else {
-            // Permission Denied
-        }
     }
 
     fun scheduleReminder(hour: Int, minute: Int) {
@@ -99,6 +90,26 @@ fun SettingsScreen() {
         )
     }
 
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            pendingReminderTime?.let {
+                val (hour, minute) = it
+                val newReminder = hashMapOf(
+                    "userId" to user?.uid,
+                    "time" to "$hour:$minute"
+                )
+                db.collection("reminders").add(newReminder).addOnSuccessListener { fetchReminders() }
+                scheduleReminder(hour, minute)
+                pendingReminderTime = null
+            }
+        } else {
+            Toast.makeText(context, "Permission denied. Reminder not set.", Toast.LENGTH_SHORT).show()
+            pendingReminderTime = null
+        }
+    }
+
     val calendar = Calendar.getInstance()
     val timePickerDialog = TimePickerDialog(
         context,
@@ -112,6 +123,7 @@ fun SettingsScreen() {
                 db.collection("reminders").add(newReminder).addOnSuccessListener { fetchReminders() }
                 scheduleReminder(hour, minute)
             } else {
+                pendingReminderTime = hour to minute
                 launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         },
