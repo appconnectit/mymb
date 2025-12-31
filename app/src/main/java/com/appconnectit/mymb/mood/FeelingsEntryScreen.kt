@@ -134,7 +134,7 @@ fun FeelingsEntryScreen(mood: Float, onCancel: () -> Unit, onSubmit: () -> Unit)
                         "lunarPhase" to "TODO", // TODO: Implement Lunar Phase Calculation
                         "location" to "TODO" // TODO: Implement Location Services
                     )
-                    db.collection("mood_entries").add(moodEntry).addOnSuccessListener { onSubmit() }
+                    db.collection("moodEntries").add(moodEntry).addOnSuccessListener { onSubmit() }
                 }
             }, modifier = Modifier.padding(start = 8.dp)) {
                 Text("Submit")
