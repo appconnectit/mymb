@@ -54,6 +54,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.6")
     implementation("com.google.firebase:firebase-auth-ktx:23.2.1")
     implementation("com.google.firebase:firebase-firestore-ktx:25.1.4")
+    implementation("androidx.compose.animation:animation")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
