@@ -1,5 +1,11 @@
 package com.appconnectit.mymb.mood
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -11,12 +17,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,10 +37,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
+import java.util.Calendar
+import java.util.Date
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -41,8 +54,59 @@ fun FeelingsEntryScreen(mood: Float, onCancel: () -> Unit, onSubmit: () -> Unit)
     var selectedFeelings by remember { mutableStateOf(setOf<String>()) }
     var notes by remember { mutableStateOf("") }
     var feelings by remember { mutableStateOf(listOf<String>()) }
+    var userGender by remember { mutableStateOf<String?>(null) }
+    var menstrualCycleDay by remember { mutableStateOf(0f) }
+    val context = LocalContext.current
 
     val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+    val user = auth.currentUser
+
+    LaunchedEffect(user) {
+        if (user != null) {
+            db.collection("users").document(user.uid).get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        userGender = document.getString("gender")
+                    }
+                }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        Log.d("LunarPhaseDebug", "Today's Lunar Phase: ${getLunarPhase(Date())}")
+    }
+
+    fun performSubmit(location: String) {
+        if (user != null) {
+            val moodEntry = hashMapOf<String, Any>(
+                "userId" to user.uid,
+                "mood" to mood,
+                "feelings" to selectedFeelings.toList(),
+                "notes" to notes,
+                "timestamp" to FieldValue.serverTimestamp(),
+                "lunarPhase" to getLunarPhase(Date()),
+                "location" to location
+            )
+            if (userGender == "Female") {
+                moodEntry["menstrualCycle"] = getMenstrualCycleLabel(menstrualCycleDay)
+            }
+            db.collection("moodEntries").add(moodEntry).addOnSuccessListener { onSubmit() }
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                getCurrentLocation(context) { lat, long ->
+                    performSubmit("$lat, $long")
+                }
+            } else {
+                performSubmit("Permission Denied")
+            }
+        }
+    )
 
     // Define pastel colors
     val neutralColorStart = Color(0xFFB2DFDB) // Lighter Teal
@@ -117,28 +181,86 @@ fun FeelingsEntryScreen(mood: Float, onCancel: () -> Unit, onSubmit: () -> Unit)
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(24.dp))
+        if (userGender == "Female") {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(getMenstrualCycleLabel(menstrualCycleDay))
+                Slider(
+                    value = menstrualCycleDay,
+                    onValueChange = { menstrualCycleDay = it },
+                    steps = 5,
+                    valueRange = 0f..6f,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
         Row {
             Button(onClick = onCancel, modifier = Modifier.padding(end = 8.dp)) {
                 Text("Cancel")
             }
             Button(onClick = {
-                val auth = FirebaseAuth.getInstance()
-                val user = auth.currentUser
-                if (user != null) {
-                    val moodEntry = hashMapOf(
-                        "userId" to user.uid,
-                        "mood" to mood,
-                        "feelings" to selectedFeelings.toList(),
-                        "notes" to notes,
-                        "timestamp" to FieldValue.serverTimestamp(),
-                        "lunarPhase" to "TODO", // TODO: Implement Lunar Phase Calculation
-                        "location" to "TODO" // TODO: Implement Location Services
-                    )
-                    db.collection("moodEntries").add(moodEntry).addOnSuccessListener { onSubmit() }
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    getCurrentLocation(context) { lat, long ->
+                        performSubmit("$lat, $long")
+                    }
+                } else {
+                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                 }
             }, modifier = Modifier.padding(start = 8.dp)) {
                 Text("Submit")
             }
         }
+    }
+}
+
+fun getMenstrualCycleLabel(value: Float): String {
+    return when (value.roundToInt()) {
+        0 -> "Approaching Periods"
+        1 -> "Day 1"
+        2 -> "Day 2"
+        3 -> "Day 3"
+        4 -> "Day 4"
+        5 -> "Day 5"
+        6 -> "Extended Periods"
+        else -> ""
+    }
+}
+
+fun getLunarPhase(date: Date): String {
+    val cal = Calendar.getInstance()
+    cal.time = date
+    val year = cal.get(Calendar.YEAR)
+    val dayOfYear = cal.get(Calendar.DAY_OF_YEAR)
+
+    val phase = (year + dayOfYear / 365.25 - 2000) * 12.3685
+    var fraction = phase - phase.toInt()
+    if (fraction < 0) {
+        fraction += 1.0
+    }
+
+    val phaseIndex = (fraction * 8 + 0.5).toInt() and 7
+
+    return when (phaseIndex) {
+        0 -> "New Moon"
+        1 -> "Waxing Crescent"
+        2 -> "First Quarter"
+        3 -> "Waxing Gibbous"
+        4 -> "Full Moon"
+        5 -> "Waning Gibbous"
+        6 -> "Last Quarter"
+        7 -> "Waning Crescent"
+        else -> "New Moon" // Fallback
+    }
+}
+
+fun getCurrentLocation(context: Context, onLocation: (Double, Double) -> Unit) {
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    onLocation(location.latitude, location.longitude)
+                }
+            }
     }
 }

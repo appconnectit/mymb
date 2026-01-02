@@ -108,7 +108,7 @@ fun MoodVisualizationScreen() {
                 xAxisData = xAxisData,
                 yAxisData = yAxisData,
                 gridLines = GridLines(),
-                backgroundColor = Color.White
+                backgroundColor = Color.Transparent
             )
 
             LineChart(
